@@ -1,9 +1,12 @@
+```python
+#!/usr/bin/env python3
 import os
 import subprocess
 import getpass
 import re
 import datetime
 import tempfile
+import shutil
 
 def get_current_time():
     now = datetime.datetime.now()
@@ -21,10 +24,11 @@ def get_crontab():
 
 def clear_crontab():
     try:
-        with open(f"/tmp/{getpass.getuser()}_crontab", "w") as f:
+        temp_file = f"/tmp/{getpass.getuser()}_crontab_{os.getpid()}"
+        with open(temp_file, "w") as f:
             f.write("")
-        subprocess.run(['crontab', f"/tmp/{getpass.getuser()}_crontab"], check=True)
-        os.remove(f"/tmp/{getpass.getuser()}_crontab")
+        subprocess.run(['crontab', temp_file], check=True)
+        os.remove(temp_file)
         print("Previous settings cleared.")
     except (subprocess.CalledProcessError, OSError) as e:
         print(f"Error clearing crontab: {e}")
@@ -35,6 +39,9 @@ def uninstall_script():
         script_path = os.path.abspath(__file__)
         os.remove(script_path)
         print("Script uninstalled successfully.")
+        if os.path.exists("/usr/local/bin/restart_scheduler"):
+            os.remove("/usr/local/bin/restart_scheduler")
+            print("Global command removed from /usr/local/bin.")
     except (OSError, subprocess.CalledProcessError) as e:
         print(f"Error uninstalling script: {e}")
 
@@ -42,10 +49,12 @@ def show_settings():
     cron_content = get_crontab()
     if cron_content:
         print("Current restart settings:")
+        found = False
         for line in cron_content.splitlines():
             if "/sbin/reboot" in line:
                 print(f" - {line}")
-        if not any("/sbin/reboot" in line for line in cron_content.splitlines()):
+                found = True
+        if not found:
             print("No active restart settings found in crontab.")
     else:
         print("No restart settings configured (crontab is empty).")
@@ -79,17 +88,36 @@ def set_cron_schedule(schedule, hour, minute):
         cron_job = f"{minute} {hour} {schedule} /sbin/reboot"
         new_cron_lines.append(cron_job)
         # Write to temp file
-        temp_file = f"/tmp/{getpass.getuser()}_crontab"
+        temp_file = f"/tmp/{getpass.getuser()}_crontab_{os.getpid()}"
         with open(temp_file, "w") as f:
             f.write("\n".join(new_cron_lines) + "\n")
         # Update crontab
         subprocess.run(['crontab', temp_file], check=True)
+        # Verify crontab was updated
+        updated_cron = get_crontab()
+        if cron_job in updated_cron:
+            print(f"Restart scheduled: {cron_job}")
+        else:
+            print("Error: Crontab was not updated correctly.")
         os.remove(temp_file)
-        print(f"Restart scheduled: {cron_job}")
     except (subprocess.CalledProcessError, OSError) as e:
         print(f"Error setting crontab: {e}")
 
+def install_global_command():
+    try:
+        script_path = os.path.abspath(__file__)
+        global_path = "/usr/local/bin/restart_scheduler"
+        shutil.copy(script_path, global_path)
+        os.chmod(global_path, 0o755)
+        print("Global command 'restart_scheduler' installed in /usr/local/bin.")
+    except (OSError, shutil.Error) as e:
+        print(f"Error installing global command: {e}")
+
 def main():
+    # Install global command if not already installed
+    if not os.path.exists("/usr/local/bin/restart_scheduler"):
+        install_global_command()
+
     # Check if crontab already has reboot settings
     cron_content = get_crontab()
     if cron_content and "/sbin/reboot" in cron_content:
@@ -150,3 +178,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+```
