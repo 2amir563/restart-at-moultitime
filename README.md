@@ -1,6 +1,54 @@
 # restart-at-moultitime
 برای ریستارت سرور در زمان مشخص خودم درست کردم این کد را
+
+
+بنابراین، دستور پیشنهادی:
+
+bash
+
+sudo apt-get update && sudo apt-get install -y git python3-pip && pip3 install --break-system-packages python-crontab && ( [ -d ~/restart-at-moultitime ] && cd ~/restart-at-moultitime && git pull origin main || git clone https://github.com/2amir563/restart-at-moultitime.git ) && sudo cp ~/restart-at-moultitime/restart_server.py /usr/local/bin/restart_server && sudo chmod +x /usr/local/bin/restart_server && sudo restart_server
+نکات مهم:
+توزیع لینوکس: این دستور برای اوبونتو/دبیان است. اگر از توزیع دیگری (مثل CentOS، Fedora، یا Arch) استفاده می‌کنید، لطفاً خروجی cat /etc/os-release را به اشتراک بگذارید تا دستور متناسب را ارائه کنم. برای مثال:
+CentOS/RHEL:
+bash
+
+sudo yum install -y git python3-pip && pip3 install --break-system-packages python-crontab && ( [ -d ~/restart-at-moultitime ] && cd ~/restart-at-moultitime && git pull origin main || git clone https://github.com/2amir563/restart-at-moultitime.git ) && sudo cp ~/restart-at-moultitime/restart_server.py /usr/local/bin/restart_server && sudo chmod +x /usr/local/bin/restart_server && sudo restart_server
+
+
+Fedora:
+bash
+
+sudo dnf install -y git python3-pip && pip3 install --break-system-packages python-crontab && ( [ -d ~/restart-at-moultitime ] && cd ~/restart-at-moultitime && git pull origin main || git clone https://github.com/2amir563/restart-at-moultitime.git ) && sudo cp ~/restart-at-moultitime/restart_server.py /usr/local/bin/restart_server && sudo chmod +x /usr/local/bin/restart_server && sudo restart_server
+
+Arch Linux:
+bash
+
+sudo pacman -S --noconfirm git python-pip && pip3 install --break-system-packages python-crontab && ( [ -d ~/restart-at-moultitime ] && cd ~/restart-at-moultitime && git pull origin main || git clone https://github.com/2amir563/restart-at-moultitime.git ) && sudo cp ~/restart-at-moultitime/restart_server.py /usr/local/bin/restart_server && sudo chmod +x /usr/local/bin/restart_server && sudo restart_server
+اجرای مجدد: پس از اجرای دستور اولیه، برای اجرای دوباره اسکریپت از هر دایرکتوری، کافی است:
+bash
+
+sudo restart_server
+حذف اسکریپت: برای حذف کامل اسکریپت و اثرات آن، از گزینه 5 داخل اسکریپت (sudo restart_server و انتخاب 5) یا دستور دستی زیر استفاده کنید:
+bash
+
+sudo crontab -u root -r && sudo rm -f /usr/local/bin/restart_server && sudo rm -f /var/log/server_restart.log && rm -rf ~/restart-at-moultitime
+(توجه: این دستور تمام cron jobهای کاربر root را حذف می‌کند. اگر می‌خواهید فقط cron jobهای مربوط به اسکریپت حذف شوند، از گزینه 5 استفاده کنید.)
+بررسی: برای اطمینان از نصب و تنظیمات:
+bash
+
+sudo crontab -l  # بررسی cron jobها
+cat /var/log/server_restart.log  # بررسی لاگ‌ها
+در صورت بروز خطا:
+اگر با خطای دیگری مواجه شدید (مثلاً مشکلات مجوز یا نصب)، متن خطا را به اشتراک بگذارید. همچنین، اگر توزیع لینوکس شما مشخص نیست، خروجی cat /etc/os-release را ارائه دهید تا دستور را دقیق‌تر کنم.
+
+............................................................................................................................................
+
+
+
+
 اجرای اولیه اسکریپت:
+sudo apt-get update && sudo apt-get install -y git python3-pip && pip3 install --break-system-packages python-crontab && ( [ -d ~/restart-at-moultitime ] && cd ~/restart-at-moultitime && git pull origin main || git clone https://github.com/2amir563/restart-at-moultitime.git ) && sudo cp ~/restart-at-moultitime/restart_server.py /usr/local/bin/restart_server && sudo chmod +x /usr/local/bin/restart_server && sudo restart_server
+
 
 sudo apt-get update && sudo apt-get install -y git python3-pip && pip3 install python-crontab && git clone https://github.com/2amir563/restart-at-moultitime.git && sudo cp restart-at-moultitime/restart_server.py /usr/local/bin/restart_server && sudo chmod +x /usr/local/bin/restart_server && sudo restart_server
 
