@@ -9,7 +9,15 @@ import re
 
 # Unique identifier for cron jobs created by this script
 CRON_COMMENT = "#restart_scheduler_job_by_script"
-SCRIPT_NAME = os.path.basename(__file__)
+
+# Determine the name the script was executed with for display purposes
+try:
+    # sys.argv[0] is the name/path used to invoke the script
+    # os.path.basename gives just the script name part
+    # If sys.argv or sys.argv[0] is empty/None, fallback to __file__
+    EXECUTED_SCRIPT_NAME = os.path.basename(sys.argv[0] if sys.argv and sys.argv[0] else __file__)
+except Exception:
+    EXECUTED_SCRIPT_NAME = "restart_scheduler.py" # A sensible fallback
 
 # ANSI color codes for better terminal output
 HEADER = '\033[95m'
@@ -29,8 +37,10 @@ def clear_screen():
 def check_root():
     """Checks if the script is run as root."""
     if os.geteuid() != 0:
-        print(f"{FAIL}This script requires root privileges to manage crontab.{ENDC}")
-        print(f"Please run with '{BOLD}sudo python3 {SCRIPT_NAME}{ENDC}' or if installed in PATH '{BOLD}sudo {SCRIPT_NAME.replace('.py', '')}{ENDC}'.")
+        print(f"{FAIL}This script requires root privileges to manage crontab and itself.{ENDC}")
+        # Use EXECUTED_SCRIPT_NAME for more accurate instruction
+        script_call_name = EXECUTED_SCRIPT_NAME.replace('.py', '') if '.py' in EXECUTED_SCRIPT_NAME.lower() else EXECUTED_SCRIPT_NAME
+        print(f"Please run with '{BOLD}sudo python3 {EXECUTED_SCRIPT_NAME}{ENDC}' or if installed in PATH '{BOLD}sudo {script_call_name}{ENDC}'.")
         sys.exit(1)
 
 def get_current_crontab():
@@ -42,8 +52,10 @@ def get_current_crontab():
         elif "no crontab for" in result.stderr.lower() or result.stdout == "":
             return ""
         else:
-            print(f"{WARNING}Warning while reading crontab: {result.stderr.strip()}{ENDC}")
-            return "" 
+            # Only print warning if stderr has content beyond "no crontab for"
+            if result.stderr and "no crontab for" not in result.stderr.lower():
+                 print(f"{WARNING}Warning while reading crontab: {result.stderr.strip()}{ENDC}")
+            return ""
     except FileNotFoundError:
         print(f"{FAIL}Command 'crontab' not found. Is it installed?{ENDC}")
         sys.exit(1)
@@ -58,11 +70,11 @@ def set_crontab(content):
             subprocess.run(['crontab', '-r'], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return True
         except subprocess.CalledProcessError as e:
-            if "no crontab for" not in e.stderr.decode().lower() if e.stderr else True:
-                 if e.stderr and "no crontab for" not in e.stderr.decode().lower():
-                    print(f"{FAIL}Error clearing crontab: {e.stderr.decode().strip()}{ENDC}")
-                    return False
-            return True 
+            # If 'no crontab for' is the error, it's effectively cleared/empty.
+            if e.stderr and "no crontab for" not in e.stderr.decode().lower():
+                print(f"{FAIL}Error trying to clear crontab (it might have been already empty): {e.stderr.decode().strip()}{ENDC}")
+                # return False # Still, the state is 'empty', so perhaps true is better.
+            return True # Treat as success if crontab is now effectively empty.
     try:
         process = subprocess.Popen(['crontab', '-'], stdin=subprocess.PIPE, text=True, encoding='utf-8')
         stdout, stderr = process.communicate(input=content)
@@ -79,37 +91,49 @@ def set_crontab(content):
         sys.exit(1)
 
 def remove_all_script_cron_jobs(inform_user=True):
-    """Removes all cron jobs previously set by this script."""
+    """Removes all cron jobs previously set by this script.
+    Returns:
+        - Number of jobs actually removed (>=0) on success.
+        - -1 on failure to set/modify crontab.
+    """
     current_crontab = get_current_crontab()
     lines = current_crontab.splitlines()
-    original_job_count = sum(1 for line in lines if CRON_COMMENT in line)
 
-    if original_job_count == 0:
+    jobs_to_remove_lines = [line for line in lines if CRON_COMMENT in line]
+    num_jobs_found = len(jobs_to_remove_lines)
+
+    if num_jobs_found == 0:
         if inform_user:
-            print(f"{OKBLUE}ℹ️ No restart tasks set by this script were found to clear.{ENDC}")
-        return True
+            print(f"{OKBLUE}ℹ️ No restart tasks set by this script were found in crontab.{ENDC}")
+        return 0 # 0 jobs existed, 0 removed, operation successful
 
     new_lines = [line for line in lines if CRON_COMMENT not in line]
     new_crontab_content = "\n".join(new_lines)
-    if new_lines: 
+    if new_lines:
         new_crontab_content += "\n"
-    
+    else: # If all lines were script lines, ensure content is empty for crontab -r behavior
+        new_crontab_content = ""
+
+
     if set_crontab(new_crontab_content):
         if inform_user:
-            print(f"{OKGREEN}✅ All previous restart settings ({original_job_count} item(s)) were successfully cleared.{ENDC}")
-        return True
+            print(f"{OKGREEN}✅ Successfully cleared {num_jobs_found} previously set restart task(s) from crontab.{ENDC}")
+        return num_jobs_found # Number of jobs removed
     else:
         if inform_user:
-            print(f"{FAIL}⚠️ Error clearing previous crontab tasks.{ENDC}")
-        return False
+            # set_crontab would have printed specific errors
+            print(f"{FAIL}⚠️ Failed to update crontab to remove tasks.{ENDC}")
+        return -1 # Indicates failure
 
 def add_cron_job(schedule_expression, job_description):
     """Adds a new cron job for restarting the system, after clearing old ones from this script."""
-    if not remove_all_script_cron_jobs(inform_user=False):
-        print(f"{FAIL}⚠️ Could not clear previous tasks. New task not added.{ENDC}")
+    # remove_all_script_cron_jobs returns -1 on failure, >=0 on success (including 0 found)
+    clear_status = remove_all_script_cron_jobs(inform_user=False)
+    if clear_status == -1 :
+        print(f"{FAIL}⚠️ Could not clear previous tasks due to an error. New task not added.{ENDC}")
         return
 
-    current_crontab = get_current_crontab() 
+    current_crontab = get_current_crontab()
     lines = current_crontab.splitlines()
 
     reboot_paths = ["/sbin/reboot", "/usr/sbin/reboot", "/bin/reboot", "/usr/bin/reboot"]
@@ -118,7 +142,7 @@ def add_cron_job(schedule_expression, job_description):
         if os.path.exists(path) and os.access(path, os.X_OK):
             reboot_command_to_use = path
             break
-    
+
     if not reboot_command_to_use:
         shutdown_paths = ["/sbin/shutdown", "/usr/sbin/shutdown", "/bin/shutdown", "/usr/bin/shutdown"]
         shutdown_command_base = None
@@ -137,12 +161,12 @@ def add_cron_job(schedule_expression, job_description):
     lines.append(new_job)
 
     new_crontab_content = "\n".join(lines)
-    if lines: 
+    if lines:
         new_crontab_content += "\n"
 
     if set_crontab(new_crontab_content):
         print(f"{OKGREEN}✅ Restart task successfully set for '{job_description}'.{ENDC}")
-        print(f"   Cron schedule: {schedule_expression}")
+        print(f"   Cron schedule: {BOLD}{schedule_expression}{ENDC}")
     else:
         print(f"{FAIL}⚠️ Error setting new crontab task.{ENDC}")
 
@@ -154,7 +178,7 @@ def get_script_cron_jobs():
 def display_current_time():
     """Displays the current system time in a formatted way."""
     now = datetime.datetime.now()
-    day_en = now.strftime("%A") 
+    day_en = now.strftime("%A")
 
     print(f"\n{OKCYAN}╔══════════════════════════════════════╗{ENDC}")
     print(f"{OKCYAN}║    {BOLD}{HEADER}Current System Time & Date{ENDC}      {OKCYAN}║{ENDC}")
@@ -163,7 +187,7 @@ def display_current_time():
     date_str = now.strftime("%Y-%m-%d")
     print(f"{OKCYAN}║  {BOLD}{OKGREEN}Time:      {time_str}{ENDC}               {OKCYAN}║{ENDC}")
     print(f"{OKCYAN}║  {BOLD}{OKBLUE}Date:      {date_str}{ENDC}               {OKCYAN}║{ENDC}")
-    print(f"{OKCYAN}║  {BOLD}{OKBLUE}Day:       {day_en.center(18)}{ENDC}  {OKCYAN}║{ENDC}") 
+    print(f"{OKCYAN}║  {BOLD}{OKBLUE}Day:       {day_en.center(18)}{ENDC}  {OKCYAN}║{ENDC}")
     print(f"{OKCYAN}╚══════════════════════════════════════╝{ENDC}\n")
 
 def get_valid_time_input():
@@ -174,15 +198,15 @@ def get_valid_time_input():
             match = re.fullmatch(r"([01]?[0-9]|2[0-3]):([0-5][0-9])", time_str)
             if match:
                 hour, minute = match.groups()
-                return f"{int(hour):02d}", f"{int(minute):02d}" 
+                return f"{int(hour):02d}", f"{int(minute):02d}"
             else:
                 print(f"{WARNING}Invalid time format. Please use HH:MM (e.g., 08:00 or 23:59).{ENDC}")
-        except ValueError: 
+        except ValueError:
             print(f"{WARNING}Invalid input. Please use numbers for hour and minute.{ENDC}")
 
 def handle_interval_restart(): # Renamed from handle_hourly_restart
     print(f"\n{UNDERLINE}Setting up interval restart...{ENDC}")
-    
+
     n_hours = 0
     while True:
         try:
@@ -200,7 +224,7 @@ def handle_interval_restart(): # Renamed from handle_hourly_restart
 
     print("From what time should the first restart in the interval begin?")
     start_hour_str, start_minute_str = get_valid_time_input()
-    
+
     hours_to_schedule = set()
     h = int(start_hour_str)
     for _ in range(24): # Iterate at most 24 times to find all unique hours in the sequence
@@ -215,10 +239,10 @@ def handle_interval_restart(): # Renamed from handle_hourly_restart
 
     sorted_hour_list = sorted(list(hours_to_schedule))
     hour_string = ",".join(map(str, sorted_hour_list))
-    
+
     cron_schedule = f"{start_minute_str} {hour_string} * * *"
     job_description = f"Every {n_hours} hours, starting at {start_hour_str}:{start_minute_str}"
-    
+
     add_cron_job(cron_schedule, job_description)
 
 def handle_daily_restart():
@@ -252,48 +276,106 @@ def handle_show_settings():
     if jobs:
         print(f"{OKGREEN}Restart tasks scheduled by this script:{ENDC}")
         for job in jobs:
-            match_desc = re.search(r'\(([^)]+)\)$', job) 
+            match_desc = re.search(r'\(([^)]+)\)$', job)
             desc = match_desc.group(1) if match_desc else "No description"
             cron_part_match = re.match(r'([^#]+)', job)
             cron_part = cron_part_match.group(1).strip() if cron_part_match else "Scheduling undefined"
             print(f"  - {BOLD}{cron_part}{ENDC} ({desc})")
     else:
-        print(f"{OKBLUE}ℹ️ No restart settings found by this script.{ENDC}")
+        print(f"{OKBLUE}ℹ️ No restart settings found by this script in crontab.{ENDC}")
 
 def handle_clear_settings():
-    print(f"\n{UNDERLINE}Clearing previous restart settings...{ENDC}")
+    print(f"\n{UNDERLINE}Clearing previous restart settings (keeps script file)...{ENDC}")
     remove_all_script_cron_jobs(inform_user=True)
 
 def handle_uninstall_script():
     print(f"\n{UNDERLINE}Uninstall script and settings...{ENDC}")
-    if remove_all_script_cron_jobs(inform_user=True):
-        print(f"\n{OKBLUE}All restart tasks scheduled by this script have been cleared.{ENDC}")
-        print(f"To completely remove the script, please manually delete the script file:")
+
+    status_or_count = remove_all_script_cron_jobs(inform_user=True)
+
+    if status_or_count != -1: # Cron jobs cleared successfully or none existed
+        # Message about cron jobs already printed by remove_all_script_cron_jobs
+
+        script_to_delete_path = ""
         try:
-            script_full_path = os.path.abspath(__file__)
-            print(f"  {BOLD}{script_full_path}{ENDC}")
-            print(f"Also, if you copied it to a PATH directory (e.g., /usr/local/bin), remove that copy as well.")
-        except NameError: 
-             print(f"  {BOLD}Please manually delete the current script file.{ENDC}")
-        print(f"\n{WARNING}Note: This option does not delete the script file itself from the disk, it only provides guidance.{ENDC}")
-    else:
-        print(f"{FAIL}⚠️ Error clearing crontab tasks. Full uninstallation of settings not completed.{ENDC}")
+            # Determine the path of the script being executed
+            # sys.argv[0] is usually the most reliable for how the script was invoked
+            if sys.argv and sys.argv[0] and os.path.exists(sys.argv[0]):
+                 script_to_delete_path = os.path.abspath(sys.argv[0])
+            # Fallback to __file__ if sys.argv[0] is not usable or doesn't exist (e.g. embedded interpreter)
+            elif os.path.exists(__file__):
+                 script_to_delete_path = os.path.abspath(__file__)
+            else:
+                # This case should be rare if the script is running.
+                raise FileNotFoundError("Script path could not be reliably determined.")
+
+        except Exception as e:
+            print(f"{FAIL}\nCould not determine the path of the currently running script: {e}{ENDC}")
+            print(f"{OKBLUE}Skipping self-deletion. Please remove script files manually.{ENDC}")
+            print(f"  - You may need to check common installation paths like: {BOLD}/usr/local/bin/restart_scheduler{ENDC}")
+            return # Exit this function, user will go back to menu
+
+        if not os.path.isfile(script_to_delete_path): # Check if it's a file and not a directory
+            print(f"{WARNING}\nThe determined script path ({script_to_delete_path}) is not a file or seems to no longer exist. Skipping deletion.{ENDC}")
+            print(f"{OKBLUE}Please remove script files manually if they exist elsewhere.{ENDC}")
+            print(f"  - Check common installation paths like: {BOLD}/usr/local/bin/restart_scheduler{ENDC}")
+            return
+
+        print(f"\n{WARNING}You are about to PERMANENTLY DELETE the script file itself:{ENDC}")
+        print(f"  Script file: {BOLD}{script_to_delete_path}{ENDC}")
+
+        confirm = input(f"{OKCYAN}Are you sure you want to delete this script file? (yes/no): {ENDC}").strip().lower()
+
+        if confirm == 'yes':
+            try:
+                os.remove(script_to_delete_path)
+                print(f"{OKGREEN}✅ Script file '{script_to_delete_path}' has been successfully deleted.{ENDC}")
+
+                # Advise about other potential copies, especially the one in /usr/local/bin if different.
+                common_install_name = "restart_scheduler" # Default name used in installation instructions
+                common_install_path = f"/usr/local/bin/{common_install_name}"
+
+                if os.path.abspath(script_to_delete_path) == os.path.abspath(common_install_path):
+                    print(f"{OKBLUE}This appears to be the installed version at '{common_install_path}'.{ENDC}")
+                elif os.path.exists(common_install_path):
+                     print(f"{WARNING}Note: If you installed a copy to '{common_install_path}', you may need to delete it manually as well.{ENDC}")
+
+                print(f"\n{OKGREEN}Uninstallation process complete (tasks cleared and this script file deleted).{ENDC}")
+                print(f"{OKGREEN}Exiting program now.{ENDC}")
+                sys.exit(0) # Exit the script as it has deleted itself
+
+            except OSError as e:
+                print(f"{FAIL}⚠️ Error deleting script file '{script_to_delete_path}': {e}{ENDC}")
+                print(f"{OKBLUE}You may need to delete it manually. Scheduled tasks (if any) remain cleared.{ENDC}")
+        else:
+            print(f"{OKBLUE}Script file deletion cancelled by user.{ENDC}")
+            print(f"Scheduled tasks (if any) remain cleared. You can delete the script file manually if you wish:")
+            print(f"  - Script file: {BOLD}{script_to_delete_path}{ENDC}")
+            common_install_name = "restart_scheduler"
+            common_install_path = f"/usr/local/bin/{common_install_name}"
+            if os.path.abspath(script_to_delete_path) != os.path.abspath(common_install_path):
+                print(f"  - Also consider checking common installation paths like: {BOLD}{common_install_path}{ENDC}")
+    else: # status_or_count == -1 (failure clearing cron jobs)
+        # Error message already printed by remove_all_script_cron_jobs or set_crontab
+        print(f"{FAIL}Could not complete the uninstallation of scheduled settings due to an error in crontab modification.{ENDC}")
+        print(f"{FAIL}Script file has NOT been deleted.{ENDC}")
+
 
 def display_menu_and_get_choice():
     """Displays the main menu and gets the user's choice."""
     print(f"{HEADER}Please select an option:{ENDC}")
     options = [
-        "Interval Restart (every N hours from a start time)", # Changed
+        "Interval Restart (every N hours from a start time)",
         "Daily Restart (at a specific time)",
         "Restart Every Few Days (at a specific time)",
         "Show Current Restart Settings",
-        "Clear Previous Restart Settings (without uninstalling script)",
-        "Uninstall Script and All Its Settings (guides manual file deletion)",
+        "Clear Previous Restart Settings (keeps script file)",
+        "Uninstall (clears settings AND deletes this script file)", # Updated menu text
         "Exit"
     ]
     for i, option in enumerate(options, 1):
         print(f"{i}. {option}")
-    
+
     while True:
         choice = input(f"{OKCYAN}Your choice (1-{len(options)}): {ENDC}").strip()
         if choice.isdigit() and 1 <= int(choice) <= len(options):
@@ -304,11 +386,12 @@ def display_menu_and_get_choice():
 
 def print_installation_instructions():
     """Prints script installation instructions for global execution."""
+    # Use EXECUTED_SCRIPT_NAME for consistency in example commands
     print(f"{BOLD}{OKGREEN}Welcome to the System Restart Scheduler Script!{ENDC}")
     print("=" * 60)
     print(f"Guide to run this script from any path (without 'python3' prefix):")
     print(f"  1. Copy the script to a directory in your PATH, e.g., /usr/local/bin:")
-    print(f"     {BOLD}sudo cp {SCRIPT_NAME} /usr/local/bin/restart_scheduler{ENDC}")
+    print(f"     {BOLD}sudo cp {EXECUTED_SCRIPT_NAME} /usr/local/bin/restart_scheduler{ENDC}")
     print(f"     (You can rename 'restart_scheduler' to your preference)")
     print(f"  2. Make it executable:")
     print(f"     {BOLD}sudo chmod +x /usr/local/bin/restart_scheduler{ENDC}")
@@ -322,12 +405,12 @@ def main():
     print_installation_instructions()
 
     actions = {
-        '1': handle_interval_restart, # Changed
+        '1': handle_interval_restart,
         '2': handle_daily_restart,
         '3': handle_every_few_days_restart,
         '4': handle_show_settings,
-        '5': handle_clear_settings,
-        '6': handle_uninstall_script,
+        '5': handle_clear_settings,      # This only clears cron
+        '6': handle_uninstall_script,  # This now attempts to delete script file too
     }
 
     while True:
@@ -336,13 +419,15 @@ def main():
 
         if choice in actions:
             actions[choice]()
+            # If handle_uninstall_script was called and successful, sys.exit(0) would have ended the script.
+            # Otherwise, or for other actions, the loop continues.
         elif choice == str(len(actions) + 1): # Exit option
             print(f"{OKGREEN}Exiting program.{ENDC}")
             break
-        
-        if choice != str(len(actions) + 1) : 
-            input(f"\n{OKBLUE}--- Press Enter to return to the menu ---{ENDC}")
-            clear_screen()
+
+        # This input will not be reached if sys.exit(0) was called in handle_uninstall_script.
+        input(f"\n{OKBLUE}--- Press Enter to return to the menu ---{ENDC}")
+        clear_screen()
 
 if __name__ == "__main__":
     main()
