@@ -1,6 +1,7 @@
 # restart-at-moultitime
 برای ریستارت سرور در زمان مشخص خودم درست کردم این کد را
 اجرای اولیه اسکریپت:
+
 sudo apt-get update && sudo apt-get install -y git python3-pip && pip3 install python-crontab && git clone https://github.com/2amir563/restart-at-moultitime.git && sudo cp restart-at-moultitime/restart_server.py /usr/local/bin/restart_server && sudo chmod +x /usr/local/bin/restart_server && sudo restart_server
 
 اجرای مجدد اسکریپت:
