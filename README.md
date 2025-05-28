@@ -5,6 +5,12 @@
 با دسترسی root اجرا کنید:
 text
 
+سپس مخزن را از گیت‌هاب کلون کنید:
+
+git clone https://github.com/2amir563/restart-at-moultitime.git
+cd restart-at-moultitime
+
+
 
 sudo python3 restart_server.py
 
