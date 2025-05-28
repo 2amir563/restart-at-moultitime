@@ -10,27 +10,33 @@ def get_current_time():
 
 def get_crontab():
     try:
-        result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
-        return result.stdout
+        result = subprocess.run(['crontab', '-l'], capture_output=True, text=True, check=True)
+        return result.stdout.strip()
     except subprocess.CalledProcessError:
         return ""
 
 def clear_crontab():
-    with open(f"/tmp/{getpass.getuser()}_crontab", "w") as f:
-        f.write("")
-    subprocess.run(['crontab', f"/tmp/{getpass.getuser()}_crontab"])
-    os.remove(f"/tmp/{getpass.getuser()}_crontab")
-    print("Previous settings cleared.")
+    try:
+        with open(f"/tmp/{getpass.getuser()}_crontab", "w") as f:
+            f.write("")
+        subprocess.run(['crontab', f"/tmp/{getpass.getuser()}_crontab"], check=True)
+        os.remove(f"/tmp/{getpass.getuser()}_crontab")
+        print("Previous settings cleared.")
+    except (subprocess.CalledProcessError, OSError) as e:
+        print(f"Error clearing crontab: {e}")
 
 def uninstall_script():
     clear_crontab()
     script_path = os.path.abspath(__file__)
-    os.remove(script_path)
-    print("Script uninstalled successfully.")
+    try:
+        os.remove(script_path)
+        print("Script uninstalled successfully.")
+    except OSError as e:
+        print(f"Error uninstalling script: {e}")
 
 def show_settings():
     cron_content = get_crontab()
-    if "reboot" in cron_content:
+    if cron_content:
         print("Current settings:")
         print(cron_content)
     else:
@@ -58,13 +64,16 @@ def get_time_input():
         print("Invalid time. Hour must be 0-23, minute must be 0-59.")
 
 def set_cron_schedule(schedule, hour, minute):
-    clear_crontab()
-    cron_job = f"{minute} {hour} {schedule} /sbin/reboot\n"
-    with open(f"/tmp/{getpass.getuser()}_crontab", "w") as f:
-        f.write(cron_job)
-    subprocess.run(['crontab', f"/tmp/{getpass.getuser()}_crontab"])
-    os.remove(f"/tmp/{getpass.getuser()}_crontab")
-    print(f"Restart scheduled: {minute} {hour} {schedule}")
+    try:
+        clear_crontab()
+        cron_job = f"{minute} {hour} {schedule} /sbin/reboot\n"
+        with open(f"/tmp/{getpass.getuser()}_crontab", "w") as f:
+            f.write(cron_job)
+        subprocess.run(['crontab', f"/tmp/{getpass.getuser()}_crontab"], check=True)
+        os.remove(f"/tmp/{getpass.getuser()}_crontab")
+        print(f"Restart scheduled: {minute} {hour} {schedule}")
+    except (subprocess.CalledProcessError, OSError) as e:
+        print(f"Error setting crontab: {e}")
 
 def main():
     while True:
