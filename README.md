@@ -55,6 +55,28 @@ restart_scheduler
 ```
 
 This displays the menu:
+
+
+```
+╔══════════════════════════════════════╗
+║    Current System Time & Date      ║
+╠══════════════════════════════════════╣
+║  Time:      22:28:21               ║
+║  Date:      2025-05-28               ║
+║  Day:           Wednesday       ║
+╚══════════════════════════════════════╝
+
+Please select an option:
+1. Interval Restart (every N hours from a start time)
+2. Daily Restart (at a specific time)
+3. Restart Every Few Days (at a specific time)
+4. Show Current Restart Settings
+5. Clear Previous Restart Settings (without uninstalling script)
+6. Uninstall Script and All Its Settings (guides manual file deletion)
+7. Exit
+
+```
+
 ```
 Please select an option:
 1. Hourly
@@ -73,6 +95,7 @@ Please select an option:
 
 ```
 1
+
 ```
 
 
