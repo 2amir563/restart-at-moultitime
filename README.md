@@ -7,6 +7,7 @@
 bash
 
 sudo apt-get update && sudo apt-get install -y git python3-pip && pip3 install --break-system-packages python-crontab && ( [ -d ~/restart-at-moultitime ] && cd ~/restart-at-moultitime && git pull origin main || git clone https://github.com/2amir563/restart-at-moultitime.git ) && sudo cp ~/restart-at-moultitime/restart_server.py /usr/local/bin/restart_server && sudo chmod +x /usr/local/bin/restart_server && sudo restart_server
+
 نکات مهم:
 توزیع لینوکس: این دستور برای اوبونتو/دبیان است. اگر از توزیع دیگری (مثل CentOS، Fedora، یا Arch) استفاده می‌کنید، لطفاً خروجی cat /etc/os-release را به اشتراک بگذارید تا دستور متناسب را ارائه کنم. برای مثال:
 CentOS/RHEL:
