@@ -38,7 +38,7 @@ def uninstall_script():
         clear_crontab()
         script_path = os.path.abspath(__file__)
         global_path = "/usr/local/bin/restart_scheduler"
-        if os.path.exists(script_path):
+        if os.path.exists(script_path) and script_path != global_path:
             os.remove(script_path)
             print("Script removed from current directory.")
         if os.path.exists(global_path):
@@ -113,17 +113,17 @@ def install_global_command():
     try:
         script_path = os.path.abspath(__file__)
         global_path = "/usr/local/bin/restart_scheduler"
-        if not os.path.exists(global_path):
+        if not os.path.exists(global_path) or os.path.getmtime(script_path) > os.path.getmtime(global_path):
             shutil.copy(script_path, global_path)
             os.chmod(global_path, 0o755)
-            print("Global command 'restart_scheduler' installed in /usr/local/bin.")
+            print("Global command 'restart_scheduler' installed or updated in /usr/local/bin.")
         else:
-            print("Global command already exists in /usr/local/bin.")
+            print("Global command already up-to-date in /usr/local/bin.")
     except (OSError, shutil.Error) as e:
         print(f"Error installing global command: {e}")
 
 def main():
-    # Install global command if not already installed
+    # Install global command
     install_global_command()
 
     # Check if crontab already has reboot settings
