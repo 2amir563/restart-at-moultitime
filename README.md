@@ -2,6 +2,46 @@
 برای ریستارت سرور در زمان مشخص خودم درست کردم این کد را
 
 
+Install the Script:
+Run the following command on your Linux system
+
+```
+sudo bash -c "apt update && apt install -y python3 && wget -O /usr/local/bin/restart_server_timedarkhasti.py https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPO/main/restart_server_timedarkhasti.py && chmod +x /usr/local/bin/restart_server_timedarkhasti.py && echo 'alias restart-script=\"python3 /usr/local/bin/restart_server_timedarkhasti.py\"' >> ~/.bashrc && source ~/.bashrc"
+```
+
+Run the Script:
+After setup, simply run
+
+
+```
+restart-script
+```
+
+This displays the menu:
+```
+Please select an option:
+1. Hourly
+2. Daily
+3. Every few days
+4. Show current settings
+5. Clear scheduled restarts
+6. Uninstall script
+7. Exit
+```
+
+
+.....................................................................................................................................
+
+### 服务器
+
+```
+1
+```
+
+
+..............................................................
+
+
 بنابراین، دستور پیشنهادی:
 
 bash
