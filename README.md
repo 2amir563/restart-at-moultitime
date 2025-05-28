@@ -4,6 +4,8 @@
 
 Install the Script:
 Run the following command on your Linux system
+اجرای اولیه اسکریپت: برای نصب فقط کافی است کد زیر را تماما کپی کرده و در سیستم اجرا کنیم
+
 
 ```
 sudo bash -c '
@@ -48,6 +50,8 @@ sudo bash -c '
 
 Run the Script:
 After setup, simply run
+
+اجرای مجدد: پس از اجرای دستور اولیه، برای اجرای دوباره اسکریپت از هر دایرکتوری، کافی است:
 
 
 ```
