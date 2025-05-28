@@ -6,7 +6,7 @@ Install the Script:
 Run the following command on your Linux system
 
 ```
-sudo bash -c "apt update && apt install -y python3 && wget -O /usr/local/bin/restart_server_timedarkhasti.py https://raw.githubusercontent.com/YOUR_GITHUB_USERNAME/YOUR_REPO/main/restart_server_timedarkhasti.py && chmod +x /usr/local/bin/restart_server_timedarkhasti.py && echo 'alias restart-script=\"python3 /usr/local/bin/restart_server_timedarkhasti.py\"' >> ~/.bashrc && source ~/.bashrc"
+sudo bash -c "apt update && apt install -y python3 && wget -O /usr/local/bin/restart_server_timedarkhasti.py https://raw.githubusercontent.com/2amir563/restart-at-moultitime/refs/heads/main/restart_server_timedarkhasti.py && chmod +x /usr/local/bin/restart_server_timedarkhasti.py && echo 'alias restart-script=\"python3 /usr/local/bin/restart_server_timedarkhasti.py\"' >> ~/.bashrc && source ~/.bashrc"
 ```
 
 Run the Script:
