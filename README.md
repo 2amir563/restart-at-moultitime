@@ -5,6 +5,11 @@
 sudo apt-get update && sudo apt-get install -y git python3-pip && pip3 install python-crontab && git clone https://github.com/2amir563/restart-at-moultitime.git && cd restart-at-moultitime && sudo python3 restart_server.py
 
 
+دستور یک‌خطی برای پاک کردن اسکریپت (اوبونتو/دبیان):
+
+sudo crontab -u root -r && sudo rm -rf /var/log/server_restart.log && cd ~ && rm -rf restart-at-moultitime
+
+
 فایل را با نام restart_server.py ذخیره کنید.
 با دسترسی root اجرا کنید:
 text
