@@ -1,6 +1,47 @@
 # restart-at-moultitime
 برای ریستارت سرور در زمان مشخص خودم درست کردم این کد را
-اجرای اسکریپت:
+اجرای اولیه اسکریپت:
+sudo apt-get update && sudo apt-get install -y git python3-pip && pip3 install python-crontab && git clone https://github.com/2amir563/restart-at-moultitime.git && sudo cp restart-at-moultitime/restart_server.py /usr/local/bin/restart_server && sudo chmod +x /usr/local/bin/restart_server && sudo restart_server
+
+اجرای مجدد اسکریپت:
+پس از نصب اولیه، برای اجرای دوباره اسکریپت از هر دایرکتوری، کافی است این دستور را اجرا کنید:
+
+
+sudo restart_server
+
+
+دستور یک‌خطی برای حذف اسکریپت (اوبونتو/دبیان):
+
+sudo crontab -u root -r && sudo rm -f /usr/local/bin/restart_server && sudo rm -f /var/log/server_restart.log && rm -rf ~/restart-at-moultitime
+
+
+دستورات برای توزیع‌های دیگر:
+اگر از توزیعی غیر از اوبونتو/دبیان استفاده می‌کنید:
+
+CentOS/RHEL:
+sudo yum install -y git python3-pip && pip3 install python-crontab && git clone https://github.com/2amir563/restart-at-moultitime.git && sudo cp restart-at-moultitime/restart_server.py /usr/local/bin/restart_server && sudo chmod +x /usr/local/bin/restart_server && sudo restart_server
+
+
+Fedora:
+
+sudo dnf install -y git python3-pip && pip3 install python-crontab && git clone https://github.com/2amir563/restart-at-moultitime.git && sudo cp restart-at-moultitime/restart_server.py /usr/local/bin/restart_server && sudo chmod +x /usr/local/bin/restart_server && sudo restart_server
+
+
+Arch Linux:
+sudo pacman -S --noconfirm git python-pip && pip3 install python-crontab && git clone https://github.com/2amir563/restart-at-moultitime.git && sudo cp restart-at-moultitime/restart_server.py /usr/local/bin/restart_server && sudo chmod +x /usr/local/bin/restart_server && sudo restart_server
+
+
+...................................................................................................
+
+
+
+
+
+
+
+
+
+
 
 sudo apt-get update && sudo apt-get install -y git python3-pip && pip3 install python-crontab && git clone https://github.com/2amir563/restart-at-moultitime.git && cd restart-at-moultitime && sudo python3 restart_server.py
 
