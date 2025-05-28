@@ -96,17 +96,19 @@ def uninstall_script():
             logging.info("Log file /var/log/server_restart.log removed.")
             print("Log file /var/log/server_restart.log removed.")
 
-        # Remove script directory
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        parent_dir = os.path.dirname(script_dir)
-        if os.path.basename(script_dir) == 'restart-at-moultitime':
-            subprocess.run(['rm', '-rf', script_dir], check=True)
-            logging.info(f"Script directory {script_dir} removed.")
-            print(f"Script directory {script_dir} removed.")
-            os.chdir(parent_dir)  # Change to parent directory to avoid issues
-        else:
-            logging.warning("Script directory not found or not in expected location.")
-            print("Script directory not found or not in expected location.")
+        # Remove script from /usr/local/bin
+        script_path = '/usr/local/bin/restart_server'
+        if os.path.exists(script_path):
+            os.remove(script_path)
+            logging.info(f"Script file {script_path} removed.")
+            print(f"Script file {script_path} removed.")
+
+        # Remove repository directory if it exists
+        repo_dir = os.path.expanduser('~/restart-at-moultitime')
+        if os.path.exists(repo_dir):
+            subprocess.run(['rm', '-rf', repo_dir], check=True)
+            logging.info(f"Repository directory {repo_dir} removed.")
+            print(f"Repository directory {repo_dir} removed.")
 
         print("Script uninstalled successfully. Exiting.")
         logging.info("Script uninstalled successfully.")
@@ -133,23 +135,14 @@ def get_user_input():
 
     if choice == '4':
         show_current_cron()
-        return None, None, None, None  # Return None to indicate no scheduling
+        return None, None, None, None
     elif choice == '5':
         uninstall_script()
-        return None, None, None, None  # Return None to indicate uninstall
+        return None, None, None, None
     elif choice == '6':
         print("Exiting script.")
         logging.info("User chose to exit the script.")
-        return None, None, None, None  # Return None to indicate exit
-
-    if choice == '3':
-        days_interval = input("Restart every how many days? (e.g., 2): ")
-        while not days_interval.isdigit() or int(days_interval) < 1:
-            print("Please enter a valid number (greater than 0).")
-            days_interval = input("Restart every how many days?: ")
-        days_interval = int(days_interval)
-    else:
-        days_interval = None
+        return None, None, None, None
 
     time_input = input("Enter restart time in Tehran timezone (e.g., 14:30): ")
     try:
@@ -159,6 +152,15 @@ def get_user_input():
         logging.error("Invalid time format.")
         print("Invalid time format. Please use HH:MM format.")
         return get_user_input()
+
+    if choice == '3':
+        days_interval = input("Restart every how many days? (e.g., 2): ")
+        while not days_interval.isdigit() or int(days_interval) < 1:
+            print("Please enter a valid number (greater than 0).")
+            days_interval = input("Restart every how many days?: ")
+        days_interval = int(days_interval)
+    else:
+        days_interval = None
 
     return choice, restart_time.hour, restart_time.minute, days_interval
 
