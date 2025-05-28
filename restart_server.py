@@ -63,19 +63,86 @@ def check_and_install_cron():
             print(f"Error installing cron: {e}")
             return False
 
+def show_current_cron():
+    """Display current cron job settings for server_restart"""
+    try:
+        cron = CronTab(user='root')
+        jobs = list(cron.find_comment('server_restart'))
+        if not jobs:
+            print("No server restart cron jobs are currently set.")
+            logging.info("No server restart cron jobs found.")
+        else:
+            print("Current server restart cron job(s):")
+            for job in jobs:
+                print(f"- {job}")
+                logging.info(f"Displayed cron job: {job}")
+    except Exception as e:
+        logging.error(f"Error displaying cron jobs: {e}")
+        print(f"Error displaying cron jobs: {e}")
+
+def uninstall_script():
+    """Uninstall the script, cron jobs, and log file"""
+    try:
+        # Remove cron jobs
+        cron = CronTab(user='root')
+        cron.remove_all(comment='server_restart')
+        cron.write()
+        logging.info("All server_restart cron jobs removed.")
+        print("All server restart cron jobs removed.")
+
+        # Remove log file
+        if os.path.exists('/var/log/server_restart.log'):
+            os.remove('/var/log/server_restart.log')
+            logging.info("Log file /var/log/server_restart.log removed.")
+            print("Log file /var/log/server_restart.log removed.")
+
+        # Remove script directory
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        parent_dir = os.path.dirname(script_dir)
+        if os.path.basename(script_dir) == 'restart-at-moultitime':
+            subprocess.run(['rm', '-rf', script_dir], check=True)
+            logging.info(f"Script directory {script_dir} removed.")
+            print(f"Script directory {script_dir} removed.")
+            os.chdir(parent_dir)  # Change to parent directory to avoid issues
+        else:
+            logging.warning("Script directory not found or not in expected location.")
+            print("Script directory not found or not in expected location.")
+
+        print("Script uninstalled successfully. Exiting.")
+        logging.info("Script uninstalled successfully.")
+        return True
+    except Exception as e:
+        logging.error(f"Error uninstalling script: {e}")
+        print(f"Error uninstalling script: {e}")
+        return False
+
 def get_user_input():
     """Get user input for restart period and time"""
-    print("Please select the restart period:")
+    print("Please select an option:")
     print("1. Hourly")
     print("2. Daily")
     print("3. Every few days")
-    period_type = input("Your choice (1, 2, or 3): ")
+    print("4. Show current settings")
+    print("5. Uninstall script")
+    print("6. Exit")
+    choice = input("Your choice (1, 2, 3, 4, 5, or 6): ")
 
-    while period_type not in ['1', '2', '3']:
-        print("Invalid input. Please enter 1, 2, or 3.")
-        period_type = input("Your choice (1, 2, or 3): ")
+    while choice not in ['1', '2', '3', '4', '5', '6']:
+        print("Invalid input. Please enter 1, 2, 3, 4, 5, or 6.")
+        choice = input("Your choice (1, 2, 3, 4, 5, or 6): ")
 
-    if period_type == '3':
+    if choice == '4':
+        show_current_cron()
+        return None, None, None, None  # Return None to indicate no scheduling
+    elif choice == '5':
+        uninstall_script()
+        return None, None, None, None  # Return None to indicate uninstall
+    elif choice == '6':
+        print("Exiting script.")
+        logging.info("User chose to exit the script.")
+        return None, None, None, None  # Return None to indicate exit
+
+    if choice == '3':
         days_interval = input("Restart every how many days? (e.g., 2): ")
         while not days_interval.isdigit() or int(days_interval) < 1:
             print("Please enter a valid number (greater than 0).")
@@ -93,7 +160,7 @@ def get_user_input():
         print("Invalid time format. Please use HH:MM format.")
         return get_user_input()
 
-    return period_type, restart_time.hour, restart_time.minute, days_interval
+    return choice, restart_time.hour, restart_time.minute, days_interval
 
 def setup_cron(period_type, hour, minute, days_interval):
     """Set up cron job for server restart"""
@@ -146,6 +213,8 @@ def main():
 
     # Get input and set up cron
     period_type, hour, minute, days_interval = get_user_input()
+    if period_type is None:  # User chose to exit, uninstall, or show settings
+        return
     if setup_cron(period_type, hour, minute, days_interval):
         logging.info("Script executed successfully.")
     else:
