@@ -141,7 +141,8 @@ def add_cron_job(schedule_expression, job_description):
         new_crontab_content += "\n"
 
     if set_crontab(new_crontab_content):
-        print(f"{OKGREEN}✅ Restart task successfully set for '{job_description}' ({schedule_expression}).{ENDC}")
+        print(f"{OKGREEN}✅ Restart task successfully set for '{job_description}'.{ENDC}")
+        print(f"   Cron schedule: {schedule_expression}")
     else:
         print(f"{FAIL}⚠️ Error setting new crontab task.{ENDC}")
 
@@ -153,7 +154,7 @@ def get_script_cron_jobs():
 def display_current_time():
     """Displays the current system time in a formatted way."""
     now = datetime.datetime.now()
-    day_en = now.strftime("%A") # English day name
+    day_en = now.strftime("%A") 
 
     print(f"\n{OKCYAN}╔══════════════════════════════════════╗{ENDC}")
     print(f"{OKCYAN}║    {BOLD}{HEADER}Current System Time & Date{ENDC}      {OKCYAN}║{ENDC}")
@@ -179,9 +180,46 @@ def get_valid_time_input():
         except ValueError: 
             print(f"{WARNING}Invalid input. Please use numbers for hour and minute.{ENDC}")
 
-def handle_hourly_restart():
-    print(f"\n{UNDERLINE}Setting up hourly restart...{ENDC}")
-    add_cron_job("0 * * * *", "Hourly (at the top of the hour)")
+def handle_interval_restart(): # Renamed from handle_hourly_restart
+    print(f"\n{UNDERLINE}Setting up interval restart...{ENDC}")
+    
+    n_hours = 0
+    while True:
+        try:
+            n_hours_str = input("Restart every how many hours? (e.g., 4 for every 4 hours, 1-24): ").strip()
+            if not n_hours_str.isdigit():
+                print(f"{WARNING}Invalid input. Please enter a number.{ENDC}")
+                continue
+            n_hours = int(n_hours_str)
+            if 1 <= n_hours <= 24:
+                break
+            else:
+                print(f"{WARNING}Number of hours must be between 1 and 24.{ENDC}")
+        except ValueError:
+            print(f"{WARNING}Invalid input. Please enter a whole number.{ENDC}")
+
+    print("From what time should the first restart in the interval begin?")
+    start_hour_str, start_minute_str = get_valid_time_input()
+    
+    hours_to_schedule = set()
+    h = int(start_hour_str)
+    for _ in range(24): # Iterate at most 24 times to find all unique hours in the sequence
+        if h not in hours_to_schedule:
+            hours_to_schedule.add(h)
+            h = (h + n_hours) % 24
+        else: # Cycle detected
+            break
+    if not hours_to_schedule: # Should only happen if N_hours was invalid, but for safety.
+         hours_to_schedule.add(int(start_hour_str))
+
+
+    sorted_hour_list = sorted(list(hours_to_schedule))
+    hour_string = ",".join(map(str, sorted_hour_list))
+    
+    cron_schedule = f"{start_minute_str} {hour_string} * * *"
+    job_description = f"Every {n_hours} hours, starting at {start_hour_str}:{start_minute_str}"
+    
+    add_cron_job(cron_schedule, job_description)
 
 def handle_daily_restart():
     print(f"\n{UNDERLINE}Setting up daily restart...{ENDC}")
@@ -245,7 +283,7 @@ def display_menu_and_get_choice():
     """Displays the main menu and gets the user's choice."""
     print(f"{HEADER}Please select an option:{ENDC}")
     options = [
-        "Hourly Restart (at the top of the hour)",
+        "Interval Restart (every N hours from a start time)", # Changed
         "Daily Restart (at a specific time)",
         "Restart Every Few Days (at a specific time)",
         "Show Current Restart Settings",
@@ -267,7 +305,7 @@ def display_menu_and_get_choice():
 def print_installation_instructions():
     """Prints script installation instructions for global execution."""
     print(f"{BOLD}{OKGREEN}Welcome to the System Restart Scheduler Script!{ENDC}")
-    print("=" * 60) # Adjusted for potentially longer English text
+    print("=" * 60)
     print(f"Guide to run this script from any path (without 'python3' prefix):")
     print(f"  1. Copy the script to a directory in your PATH, e.g., /usr/local/bin:")
     print(f"     {BOLD}sudo cp {SCRIPT_NAME} /usr/local/bin/restart_scheduler{ENDC}")
@@ -284,7 +322,7 @@ def main():
     print_installation_instructions()
 
     actions = {
-        '1': handle_hourly_restart,
+        '1': handle_interval_restart, # Changed
         '2': handle_daily_restart,
         '3': handle_every_few_days_restart,
         '4': handle_show_settings,
