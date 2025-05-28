@@ -1,6 +1,20 @@
 # restart-at-moultitime
 برای ریستارت سرور در زمان مشخص خودم درست کردم این کد را
+اجرای اسکریپت:
+فایل را با نام restart_server.py ذخیره کنید.
+با دسترسی root اجرا کنید:
+text
 
+sudo python3 restart_server.py
+ورودی‌ها:
+نوع دوره (۱: ساعتی، ۲: روزانه، ۳: چند روز یک‌بار).
+اگر چند روز یک‌بار انتخاب شود، تعداد روزها را وارد کنید.
+ساعت به وقت تهران (مثال: 14:30).
+بررسی لاگ‌ها:
+لاگ‌ها در /var/log/server_restart.log ذخیره می‌شوند. برای مشاهده:
+text
+
+cat /var/log/server_restart.log
 
 Server Restart Scheduler
 
