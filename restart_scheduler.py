@@ -14,7 +14,7 @@ def get_current_time():
 
 def get_crontab():
     try:
-        result = subprocess.run(['crontab', '-l'], capture_output=True, text=True, check=True)
+        result = subprocess.run(['crontab', '-u', getpass.getuser(), '-l'], capture_output=True, text=True, check=True)
         return result.stdout.strip()
     except subprocess.CalledProcessError:
         return ""
@@ -27,9 +27,9 @@ def clear_crontab():
         temp_file = f"/tmp/{getpass.getuser()}_crontab_{os.getpid()}"
         with open(temp_file, "w") as f:
             f.write("")
-        subprocess.run(['crontab', temp_file], check=True)
+        subprocess.run(['crontab', '-u', getpass.getuser(), temp_file], check=True)
         os.remove(temp_file)
-        print("Previous settings cleared.")
+        print("Previous crontab settings cleared.")
     except (subprocess.CalledProcessError, OSError) as e:
         print(f"Error clearing crontab: {e}")
 
@@ -44,6 +44,9 @@ def uninstall_script():
         if os.path.exists(global_path):
             os.remove(global_path)
             print("Global command removed from /usr/local/bin.")
+        if os.path.exists("/restart_scheduler.py"):
+            os.remove("/restart_scheduler.py")
+            print("Removed misplaced script from /restart_scheduler.py.")
         print("Script uninstalled successfully.")
     except (OSError, subprocess.CalledProcessError) as e:
         print(f"Error uninstalling script: {e}")
@@ -95,7 +98,7 @@ def set_cron_schedule(schedule, hour, minute):
         with open(temp_file, "w") as f:
             f.write("\n".join(new_cron_lines) + "\n")
         # Update crontab
-        subprocess.run(['crontab', temp_file], check=True)
+        subprocess.run(['crontab', '-u', getpass.getuser(), temp_file], check=True)
         # Verify crontab was updated
         updated_cron = get_crontab()
         if cron_job in updated_cron:
