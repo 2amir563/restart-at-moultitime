@@ -3,6 +3,7 @@ import subprocess
 import getpass
 import re
 import datetime
+import tempfile
 
 def get_current_time():
     now = datetime.datetime.now()
@@ -13,6 +14,9 @@ def get_crontab():
         result = subprocess.run(['crontab', '-l'], capture_output=True, text=True, check=True)
         return result.stdout.strip()
     except subprocess.CalledProcessError:
+        return ""
+    except Exception as e:
+        print(f"Error accessing crontab: {e}")
         return ""
 
 def clear_crontab():
@@ -26,21 +30,25 @@ def clear_crontab():
         print(f"Error clearing crontab: {e}")
 
 def uninstall_script():
-    clear_crontab()
-    script_path = os.path.abspath(__file__)
     try:
+        clear_crontab()
+        script_path = os.path.abspath(__file__)
         os.remove(script_path)
         print("Script uninstalled successfully.")
-    except OSError as e:
+    except (OSError, subprocess.CalledProcessError) as e:
         print(f"Error uninstalling script: {e}")
 
 def show_settings():
     cron_content = get_crontab()
     if cron_content:
-        print("Current settings:")
-        print(cron_content)
+        print("Current restart settings:")
+        for line in cron_content.splitlines():
+            if "/sbin/reboot" in line:
+                print(f" - {line}")
+        if not any("/sbin/reboot" in line for line in cron_content.splitlines()):
+            print("No active restart settings found in crontab.")
     else:
-        print("No restart settings configured.")
+        print("No restart settings configured (crontab is empty).")
 
 def validate_time(hour, minute):
     try:
@@ -65,17 +73,32 @@ def get_time_input():
 
 def set_cron_schedule(schedule, hour, minute):
     try:
-        clear_crontab()
-        cron_job = f"{minute} {hour} {schedule} /sbin/reboot\n"
-        with open(f"/tmp/{getpass.getuser()}_crontab", "w") as f:
-            f.write(cron_job)
-        subprocess.run(['crontab', f"/tmp/{getpass.getuser()}_crontab"], check=True)
-        os.remove(f"/tmp/{getpass.getuser()}_crontab")
-        print(f"Restart scheduled: {minute} {hour} {schedule}")
+        # Preserve existing crontab entries not related to reboot
+        cron_content = get_crontab()
+        new_cron_lines = [line for line in cron_content.splitlines() if "/sbin/reboot" not in line]
+        cron_job = f"{minute} {hour} {schedule} /sbin/reboot"
+        new_cron_lines.append(cron_job)
+        # Write to temp file
+        temp_file = f"/tmp/{getpass.getuser()}_crontab"
+        with open(temp_file, "w") as f:
+            f.write("\n".join(new_cron_lines) + "\n")
+        # Update crontab
+        subprocess.run(['crontab', temp_file], check=True)
+        os.remove(temp_file)
+        print(f"Restart scheduled: {cron_job}")
     except (subprocess.CalledProcessError, OSError) as e:
         print(f"Error setting crontab: {e}")
 
 def main():
+    # Check if crontab already has reboot settings
+    cron_content = get_crontab()
+    if cron_content and "/sbin/reboot" in cron_content:
+        print("Existing restart settings detected:")
+        show_settings()
+        overwrite = input("Do you want to overwrite existing settings? (y/n): ")
+        if overwrite.lower() != "y":
+            print("Keeping existing settings.")
+
     while True:
         print(f"Current time: {get_current_time()}")
         print("Please select an option:")
