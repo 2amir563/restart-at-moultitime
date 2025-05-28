@@ -2,6 +2,11 @@ import os
 import subprocess
 import getpass
 import re
+import datetime
+
+def get_current_time():
+    now = datetime.datetime.now()
+    return now.strftime("%Y-%m-%d %H:%M:%S")
 
 def get_crontab():
     try:
@@ -63,6 +68,7 @@ def set_cron_schedule(schedule, hour, minute):
 
 def main():
     while True:
+        print(f"Current time: {get_current_time()}")
         print("Please select an option:")
         print("1. Hourly")
         print("2. Daily")
@@ -79,8 +85,8 @@ def main():
         
         if choice == "1":
             # For hourly, run every 4 hours starting from specified time
-            hours = f"{hour}, {hour+4}, {hour+8}, {hour+12}, {hour+16}, {hour+20}"
-            set_cron_schedule(f"* * * *", hour, minute)
+            hours = f"{hour},{(hour+4)%24},{(hour+8)%24},{(hour+12)%24},{(hour+16)%24},{(hour+20)%24}"
+            set_cron_schedule(f"* * * *", hours, minute)
             print(f"System will restart every 4 hours starting at {hour:02d}:{minute:02d} (e.g., {hour:02d}:{minute:02d}, {(hour+4)%24:02d}:{minute:02d}, ...).")
         elif choice == "2":
             set_cron_schedule("* * *", hour, minute)
